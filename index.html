@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gesture Control</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #00ff88;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 40px;
+            text-shadow: 0 0 20px #00ff88;
+            letter-spacing: 4px;
+        }
+
+        .mode-select {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            background: transparent;
+            border: 2px solid #00ff88;
+            color: #00ff88;
+            padding: 20px 40px;
+            font-size: 1.2rem;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        button:hover {
+            background: #00ff88;
+            color: #0a0a0a;
+            box-shadow: 0 0 30px #00ff88;
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        #videoContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            height: 240px;
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            overflow: hidden;
+            display: none;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            z-index: 100;
+        }
+
+        #videoContainer.fullscreen {
+            top: 0;
+            right: 0;
+            left: 0;
+            bottom: 0;
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            border-radius: 0;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+
+        #canvasContainer {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #drawCanvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .color-palette {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+            padding: 20px;
+            background: rgba(10, 10, 10, 0.9);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+        }
+
+        .color-option {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .color-option:hover,
+        .color-option.active {
+            border-color: #00ff88;
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        .brush-sizes {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .brush-size {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #333;
+            border: 2px solid #00ff88;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #00ff88;
+            font-size: 12px;
+        }
+
+        .brush-size.active {
+            background: #00ff88;
+            color: #0a0a0a;
+        }
+
+        #status {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 14px;
+            display: none;
+        }
+
+        #clipboard {
+            position: fixed;
+            bottom: 80px;
+            left: 20px;
+            max-width: 300px;
+            padding: 15px;
+            background: rgba(10, 10, 10, 0.9);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            display: none;
+            word-wrap: break-word;
+        }
+
+        #pasteBar {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            min-height: 100px;
+            padding: 20px;
+            background: rgba(10, 10, 10, 0.95);
+            border: 3px solid #00ff88;
+            border-radius: 15px;
+            display: none;
+            font-size: 1.2rem;
+            word-wrap: break-word;
+            box-shadow: 0 0 40px rgba(0, 255, 136, 0.5);
+            z-index: 1000;
+        }
+
+        #pasteBar .label {
+            color: #00ff88;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #pasteBar .content {
+            color: #fff;
+            margin-top: 10px;
+        }
+
+        #pasteTextArea {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 400px;
+            height: 300px;
+            background: rgba(10, 10, 10, 0.95);
+            border: 3px solid #00ff88;
+            border-radius: 10px;
+            display: none;
+            flex-direction: column;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.4);
+            z-index: 1000;
+        }
+
+        #pasteTextArea .header {
+            padding: 15px;
+            border-bottom: 2px solid #00ff88;
+            color: #00ff88;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #pasteTextArea textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+        }
+
+        .paste-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: blink 1s infinite;
+            display: none;
+        }
+
+        .paste-indicator.active {
+            display: block;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .scanning-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 60px;
+            background: rgba(10, 10, 10, 0.9);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 0 20px;
+        }
+
+        .scanning-bar.active {
+            display: flex;
+        }
+
+        .scan-line {
+            width: 60%;
+            height: 4px;
+            background: rgba(0, 255, 136, 0.2);
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scan-line::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, #00ff88, transparent);
+            animation: scan 1.5s infinite;
+        }
+
+        @keyframes scan {
+            0% {
+                left: -100%;
+            }
+
+            100% {
+                left: 100%;
+            }
+        }
+
+        .scan-text {
+            color: #00ff88;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .permission-screen {
+            text-align: center;
+        }
+
+        .permission-screen p {
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .gesture-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            animation: pulse 1s infinite;
+            display: none;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" id="mainContainer">
+        <h1>GESTURE CONTROL</h1>
+        <div class="permission-screen" id="permissionScreen">
+            <p>Camera access required for gesture recognition</p>
+            <button id="requestCameraBtn">GRANT ACCESS</button>
+        </div>
+        <div class="mode-select hidden" id="modeSelect">
+            <button id="copyPasteBtn">COPY / PASTE</button>
+            <button id="drawBtn">DRAW</button>
+        </div>
+    </div>
+
+    <div id="videoContainer">
+        <video id="webcam" autoplay playsinline></video>
+    </div>
+
+    <div id="canvasContainer">
+        <canvas id="drawCanvas"></canvas>
+    </div>
+
+    <div class="color-palette" id="colorPalette">
+        <div class="color-option active" style="background: #ff0000;" data-color="#ff0000"></div>
+        <div class="color-option" style="background: #00ff00;" data-color="#00ff00"></div>
+        <div class="color-option" style="background: #0000ff;" data-color="#0000ff"></div>
+        <div class="color-option" style="background: #ffff00;" data-color="#ffff00"></div>
+        <div class="color-option" style="background: #ff00ff;" data-color="#ff00ff"></div>
+        <div class="color-option" style="background: #00ffff;" data-color="#00ffff"></div>
+        <div class="color-option" style="background: #ffffff;" data-color="#ffffff"></div>
+        <div class="color-option" style="background: #000000;" data-color="#000000"></div>
+        <div class="brush-sizes">
+            <div class="brush-size active" data-size="5">S</div>
+            <div class="brush-size" data-size="10">M</div>
+            <div class="brush-size" data-size="20">L</div>
+        </div>
+    </div>
+
+    <div id="status"></div>
+    <div id="clipboard"></div>
+    <div id="pasteTextArea">
+        <div class="header">
+            <span>Pasted Content</span>
+            <div class="paste-indicator"></div>
+        </div>
+        <textarea readonly></textarea>
+    </div>
+    <div class="scanning-bar">
+        <div class="scan-text">Scanning gesture...</div>
+        <div class="scan-line"></div>
+    </div>
+    <div class="gesture-indicator" id="gestureIndicator"></div>
+
+    <script>
+        // Configuration
+        const WS_SERVER = 'ws://localhost:8080'; // Change to your server URL
+        let ws = null;
+        let currentMode = null;
+        let hands = null;
+        let camera = null;
+        let drawingColor = '#ff0000';
+        let brushSize = 5;
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let palmWasOpen = false;
+        let palmWasClosed = false;
+
+        // Elements
+        const requestCameraBtn = document.getElementById('requestCameraBtn');
+        const permissionScreen = document.getElementById('permissionScreen');
+        const modeSelect = document.getElementById('modeSelect');
+        const copyPasteBtn = document.getElementById('copyPasteBtn');
+        const drawBtn = document.getElementById('drawBtn');
+        const videoContainer = document.getElementById('videoContainer');
+        const webcam = document.getElementById('webcam');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const drawCanvas = document.getElementById('drawCanvas');
+        const colorPalette = document.getElementById('colorPalette');
+        const status = document.getElementById('status');
+        const clipboard = document.getElementById('clipboard');
+        const gestureIndicator = document.getElementById('gestureIndicator');
+        const mainContainer = document.getElementById('mainContainer');
+        const pasteTextArea = document.getElementById('pasteTextArea');
+        const pasteTextAreaElement = pasteTextArea.querySelector('textarea');
+        const pasteIndicator = pasteTextArea.querySelector('.paste-indicator');
+        const scanningBar = document.querySelector('.scanning-bar');
+
+        let cameraPermissionGranted = false;
+
+        // Setup canvas
+        const ctx = drawCanvas.getContext('2d');
+        drawCanvas.width = window.innerWidth;
+        drawCanvas.height = window.innerHeight;
+
+        // Camera permission
+        requestCameraBtn.addEventListener('click', async () => {
+            if (cameraPermissionGranted) {
+                permissionScreen.classList.add('hidden');
+                modeSelect.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop()); // Stop immediately, will restart in modes
+                cameraPermissionGranted = true;
+                permissionScreen.classList.add('hidden');
+                modeSelect.classList.remove('hidden');
+                initMediaPipe();
+            } catch (err) {
+                showStatus('Camera access denied', 3000);
+            }
+        });
+
+        // Mode selection
+        copyPasteBtn.addEventListener('click', () => startCopyPasteMode());
+        drawBtn.addEventListener('click', () => startDrawMode());
+
+        // Color selection
+        document.querySelectorAll('.color-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                if (e.target.dataset.color) {
+                    document.querySelectorAll('.color-option').forEach(o => o.classList.remove('active'));
+                    e.target.classList.add('active');
+                    drawingColor = e.target.dataset.color;
+                }
+            });
+        });
+
+        // Brush size selection
+        document.querySelectorAll('.brush-size').forEach(size => {
+            size.addEventListener('click', (e) => {
+                document.querySelectorAll('.brush-size').forEach(s => s.classList.remove('active'));
+                e.target.classList.add('active');
+                brushSize = parseInt(e.target.dataset.size);
+            });
+        });
+
+        function startCopyPasteMode() {
+            currentMode = 'copypaste';
+            mainContainer.classList.add('hidden');
+            videoContainer.style.display = 'block';
+            status.style.display = 'block';
+            clipboard.style.display = 'block';
+            pasteTextArea.style.display = 'flex';
+            showStatus('Copy/Paste Mode: Close palm to copy, Open palm to paste');
+            connectWebSocket();
+            if (!camera) startCamera();
+        }
+
+        function startDrawMode() {
+            currentMode = 'draw';
+            mainContainer.classList.add('hidden');
+            videoContainer.style.display = 'block';
+            videoContainer.classList.add('fullscreen');
+            canvasContainer.style.display = 'block';
+            colorPalette.style.display = 'flex';
+            status.style.display = 'block';
+            showStatus('Draw Mode: Point index finger to draw');
+            if (!camera) startCamera();
+        }
+
+        function connectWebSocket() {
+            ws = new WebSocket(WS_SERVER);
+            ws.onopen = () => showStatus('Connected to sync server');
+            ws.onmessage = (event) => {
+                const receivedText = event.data;
+                clipboard.textContent = 'Synced: ' + receivedText;
+
+                // Append to text area with new line
+                if (pasteTextAreaElement.value) {
+                    pasteTextAreaElement.value += '\n' + receivedText;
+                } else {
+                    pasteTextAreaElement.value = receivedText;
+                }
+
+                // Scroll to bottom
+                pasteTextAreaElement.scrollTop = pasteTextAreaElement.scrollHeight;
+
+                // Show animation
+                pasteIndicator.classList.add('active');
+                setTimeout(() => {
+                    pasteIndicator.classList.remove('active');
+                }, 2000);
+
+                showStatus('Received from other device', 2000);
+            };
+            ws.onerror = () => showStatus('Server connection failed - copy/paste unavailable');
+        }
+
+        function initMediaPipe() {
+            hands = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.7,
+                minTrackingConfidence: 0.7
+            });
+
+            hands.onResults(onResults);
+        }
+
+        async function startCamera() {
+            if (camera) return; // Already running
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 1280, height: 720 }
+            });
+            webcam.srcObject = stream;
+
+            camera = new Camera(webcam, {
+                onFrame: async () => {
+                    await hands.send({ image: webcam });
+                },
+                width: 1280,
+                height: 720
+            });
+            camera.start();
+        }
+
+        function onResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+
+                // Show scanning animation when hand detected
+                if (currentMode === 'copypaste') {
+                    scanningBar.classList.add('active');
+                }
+
+                if (currentMode === 'copypaste') {
+                    handleCopyPasteGestures(landmarks);
+                } else if (currentMode === 'draw') {
+                    handleDrawGestures(landmarks);
+                }
+            } else {
+                // Hide scanning when no hand detected
+                scanningBar.classList.remove('active');
+            }
+        }
+
+        function handleCopyPasteGestures(landmarks) {
+            const isPalmOpen = checkPalmOpen(landmarks);
+            const isPalmClosed = checkPalmClosed(landmarks);
+
+            // Copy on palm close
+            if (isPalmClosed && !palmWasClosed) {
+                copyToClipboard();
+                palmWasClosed = true;
+                palmWasOpen = false;
+            } else if (!isPalmClosed) {
+                palmWasClosed = false;
+            }
+
+            // Paste on palm open
+            if (isPalmOpen && !palmWasOpen) {
+                pasteFromClipboard();
+                palmWasOpen = true;
+                palmWasClosed = false;
+            } else if (!isPalmOpen) {
+                palmWasOpen = false;
+            }
+        }
+
+        function handleDrawGestures(landmarks) {
+            const indexTip = landmarks[8];
+            const indexMcp = landmarks[5];
+            const isIndexExtended = indexTip.y < indexMcp.y;
+
+            const x = (1 - indexTip.x) * drawCanvas.width;
+            const y = indexTip.y * drawCanvas.height;
+
+            if (isIndexExtended) {
+                if (!isDrawing) {
+                    isDrawing = true;
+                    lastX = x;
+                    lastY = y;
+                } else {
+                    ctx.strokeStyle = drawingColor;
+                    ctx.lineWidth = brushSize;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                    lastX = x;
+                    lastY = y;
+                }
+            } else {
+                isDrawing = false;
+            }
+        }
+
+        function checkPalmOpen(landmarks) {
+            const thumbTip = landmarks[4];
+            const indexTip = landmarks[8];
+            const middleTip = landmarks[12];
+            const ringTip = landmarks[16];
+            const pinkyTip = landmarks[20];
+            const wrist = landmarks[0];
+
+            const avgFingerY = (indexTip.y + middleTip.y + ringTip.y + pinkyTip.y) / 4;
+            return avgFingerY < wrist.y - 0.1;
+        }
+
+        function checkPalmClosed(landmarks) {
+            const thumbTip = landmarks[4];
+            const indexTip = landmarks[8];
+            const middleTip = landmarks[12];
+            const ringTip = landmarks[16];
+            const pinkyTip = landmarks[20];
+            const palm = landmarks[9];
+
+            const distances = [
+                Math.hypot(indexTip.x - palm.x, indexTip.y - palm.y),
+                Math.hypot(middleTip.x - palm.x, middleTip.y - palm.y),
+                Math.hypot(ringTip.x - palm.x, ringTip.y - palm.y),
+                Math.hypot(pinkyTip.x - palm.x, pinkyTip.y - palm.y)
+            ];
+
+            return distances.every(d => d < 0.15);
+        }
+
+        async function copyToClipboard() {
+            try {
+                const selectedText = window.getSelection().toString();
+                if (selectedText) {
+                    await navigator.clipboard.writeText(selectedText);
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(selectedText);
+                    }
+                    clipboard.textContent = 'Copied: ' + selectedText;
+                    showGesture('✊ COPY');
+                    showStatus('Copied to clipboard', 2000);
+                }
+            } catch (err) {
+                console.error('Copy failed:', err);
+            }
+        }
+
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+
+                // Append to text area with new line
+                if (pasteTextAreaElement.value) {
+                    pasteTextAreaElement.value += '\n' + text;
+                } else {
+                    pasteTextAreaElement.value = text;
+                }
+
+                // Scroll to bottom
+                pasteTextAreaElement.scrollTop = pasteTextAreaElement.scrollHeight;
+
+                // Show animation
+                pasteIndicator.classList.add('active');
+                setTimeout(() => {
+                    pasteIndicator.classList.remove('active');
+                }, 2000);
+
+                showGesture('✋ PASTE');
+                showStatus('Pasted: ' + text.substring(0, 30) + '...', 2000);
+            } catch (err) {
+                // Request clipboard permission if denied
+                showStatus('Clipboard permission needed - try again', 3000);
+                console.error('Paste failed:', err);
+            }
+        }
+
+        function showStatus(message, duration = null) {
+            status.textContent = message;
+            if (duration) {
+                setTimeout(() => status.textContent = '', duration);
+            }
+        }
+
+        function showGesture(emoji) {
+            gestureIndicator.textContent = emoji;
+            gestureIndicator.style.display = 'block';
+            setTimeout(() => {
+                gestureIndicator.style.display = 'none';
+            }, 1000);
+        }
+
+        window.addEventListener('resize', () => {
+            drawCanvas.width = window.innerWidth;
+            drawCanvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+
+</html>
