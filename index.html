@@ -2,11 +2,13 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gesture Control</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gesture Copy Paste</title>
+
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -15,62 +17,44 @@
         }
 
         body {
-            font-family: 'Courier New', monospace;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
-            color: #00ff88;
-            overflow: hidden;
             height: 100vh;
-        }
-
-        .container {
+            background: #0a0a0a;
+            color: #00ff88;
+            font-family: monospace;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            flex-direction: column;
         }
 
         h1 {
-            font-size: 3rem;
-            margin-bottom: 40px;
-            text-shadow: 0 0 20px #00ff88;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 0 0 15px #00ff88;
         }
 
         button {
-            background: transparent;
+            padding: 18px 40px;
             border: 2px solid #00ff88;
+            background: transparent;
             color: #00ff88;
-            padding: 20px 40px;
-            font-size: 1.2rem;
-            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
             cursor: pointer;
-            margin: 10px;
         }
 
         button:hover {
             background: #00ff88;
-            color: #0a0a0a;
+            color: #000;
         }
 
         #videoContainer {
             position: fixed;
-            top: 20px;
+            bottom: 20px;
             right: 20px;
-            width: 320px;
-            height: 240px;
+            width: 260px;
+            height: 200px;
             border: 2px solid #00ff88;
-            border-radius: 10px;
             display: none;
-            z-index: 100;
-        }
-
-        #videoContainer.fullscreen {
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            border: none;
-            opacity: 0.3;
         }
 
         video {
@@ -79,424 +63,117 @@
             transform: scaleX(-1);
         }
 
-        #drawCanvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            display: none;
-        }
-
-        .color-palette {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            display: none;
-            flex-wrap: wrap;
-            gap: 8px;
-            padding: 12px;
-            background: rgba(10, 10, 10, 0.8);
-            border: 2px solid #00ff88;
-            border-radius: 10px;
-            max-width: 180px;
-            z-index: 200;
-        }
-
-        .color-option {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            cursor: pointer;
-            border: 2px solid transparent;
-        }
-
-        .color-option.active {
-            border-color: #00ff88;
-        }
-
-        .eraser {
-            background: repeating-linear-gradient(45deg, #666 0px, #666 5px, #333 5px, #333 10px) !important;
-        }
-
-        .brush-sizes {
-            display: flex;
-            gap: 5px;
-            width: 100%;
-            margin-top: 5px;
-        }
-
-        .brush-size {
-            flex: 1;
-            height: 28px;
-            background: #333;
-            border: 2px solid #00ff88;
-            cursor: pointer;
-            color: #00ff88;
-            font-size: 11px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 5px;
-        }
-
-        .brush-size.active {
-            background: #00ff88;
-            color: #0a0a0a;
-        }
-
         #status {
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 255, 136, 0.2);
+            padding: 10px 20px;
             border: 1px solid #00ff88;
-            padding: 15px 30px;
-            border-radius: 25px;
-            display: none;
-            z-index: 1000;
-            max-width: 80%;
-            text-align: center;
-        }
-
-        #pasteArea {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90%;
-            max-width: 600px;
-            height: 60%;
-            max-height: 500px;
-            background: rgba(10, 10, 10, 0.95);
-            border: 3px solid #00ff88;
-            border-radius: 10px;
-            display: none;
-            flex-direction: column;
-            z-index: 999;
-            box-shadow: 0 0 40px rgba(0, 255, 136, 0.5);
-        }
-
-        #pasteArea .header {
-            padding: 15px;
-            border-bottom: 2px solid #00ff88;
-            color: #00ff88;
-            text-transform: uppercase;
-            font-size: 1rem;
-            text-align: center;
-        }
-
-        #pasteContent {
-            padding: 15px;
-            overflow-y: auto;
-            flex: 1;
-            color: #fff;
-        }
-
-        .paste-item {
-            margin-bottom: 15px;
-            padding: 10px;
-            background: rgba(0, 255, 136, 0.1);
-            border-radius: 5px;
-            word-wrap: break-word;
-        }
-
-        .paste-item img {
-            max-width: 100%;
-            border-radius: 5px;
-            margin-top: 10px;
-        }
-
-        .download-btn {
-            background: #00ff88;
-            color: #0a0a0a;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-
-        .gesture-indicator {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 5rem;
-            display: none;
-            z-index: 2000;
-        }
-
-        .hidden {
-            display: none !important;
         }
     </style>
 </head>
 
 <body>
-    <div class="container" id="mainContainer">
-        <h1>GESTURE CONTROL</h1>
-        <div id="permissionScreen">
-            <p style="margin-bottom: 20px;">Camera access required for gesture recognition</p>
-            <button id="requestCameraBtn">GRANT CAMERA ACCESS</button>
-        </div>
-        <div id="modeSelection" class="hidden">
-            <button id="copyPasteBtn">COPY / PASTE</button>
-            <button id="drawBtn">DRAW</button>
-        </div>
+
+    <h1>GESTURE COPY / PASTE</h1>
+    <button id="startBtn">START CAMERA</button>
+
+    <div id="videoContainer">
+        <video id="webcam" autoplay playsinline></video>
     </div>
 
-    <div id="videoContainer"><video id="webcam" autoplay playsinline></video></div>
-    <canvas id="drawCanvas"></canvas>
-
-    <div class="color-palette" id="colorPalette">
-        <div class="color-option active" style="background: #ff0000;" data-color="#ff0000"></div>
-        <div class="color-option" style="background: #00ff00;" data-color="#00ff00"></div>
-        <div class="color-option" style="background: #0000ff;" data-color="#0000ff"></div>
-        <div class="color-option" style="background: #ffff00;" data-color="#ffff00"></div>
-        <div class="color-option" style="background: #ff00ff;" data-color="#ff00ff"></div>
-        <div class="color-option" style="background: #00ffff;" data-color="#00ffff"></div>
-        <div class="color-option" style="background: #ffffff;" data-color="#ffffff"></div>
-        <div class="color-option" style="background: #000000;" data-color="#000000"></div>
-        <div class="color-option eraser" data-color="eraser"></div>
-        <div class="brush-sizes">
-            <div class="brush-size active" data-size="5">S</div>
-            <div class="brush-size" data-size="10">M</div>
-            <div class="brush-size" data-size="20">L</div>
-        </div>
-    </div>
-
-    <div id="status"></div>
-    <div id="pasteArea">
-        <div class="header">RECEIVED CONTENT</div>
-        <div id="pasteContent"></div>
-    </div>
-    <div class="gesture-indicator" id="gestureIndicator"></div>
+    <div id="status">Idle</div>
 
     <script>
-        const WS_SERVER = 'ws://localhost:8080';
-        let ws, hands, camera, currentMode;
-        let drawingColor = '#ff0000', brushSize = 5, isErasing = false, isDrawing = false;
-        let lastX = 0, lastY = 0, lastGestureState = null, gestureDebounce = false;
-        let cameraGranted = false;
+        const WS_SERVER = "ws://localhost:8080";
 
-        const videoContainer = document.getElementById('videoContainer');
-        const webcam = document.getElementById('webcam');
-        const drawCanvas = document.getElementById('drawCanvas');
-        const ctx = drawCanvas.getContext('2d');
-        drawCanvas.width = window.innerWidth;
-        drawCanvas.height = window.innerHeight;
+        let ws, hands, camera;
+        let lastState = null;
+        let debounce = false;
 
-        // Camera permission request
-        document.getElementById('requestCameraBtn').onclick = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                stream.getTracks().forEach(track => track.stop()); // Stop test stream
-                cameraGranted = true;
-                document.getElementById('permissionScreen').classList.add('hidden');
-                document.getElementById('modeSelection').classList.remove('hidden');
-            } catch (err) {
-                alert('Camera access denied. Please allow camera access and try again.');
-            }
-        };
+        const webcam = document.getElementById("webcam");
+        const statusBox = document.getElementById("status");
+        const videoContainer = document.getElementById("videoContainer");
 
-        document.getElementById('copyPasteBtn').onclick = () => {
-            if (!cameraGranted) return;
-            currentMode = 'copypaste';
-            document.getElementById('mainContainer').classList.add('hidden');
-            videoContainer.style.display = 'block';
-            document.getElementById('status').style.display = 'block';
-            document.getElementById('pasteArea').style.display = 'flex';
-            showStatus('Copy/Paste Mode - Connecting...');
-            connectWebSocket();
+        function setStatus(t) { statusBox.textContent = t; }
+
+        document.getElementById("startBtn").onclick = async () => {
+            videoContainer.style.display = "block";
+            connectWS();
             initCamera();
+            setStatus("Camera started");
         };
 
-        document.getElementById('drawBtn').onclick = () => {
-            if (!cameraGranted) return;
-            currentMode = 'draw';
-            document.getElementById('mainContainer').classList.add('hidden');
-            videoContainer.style.display = 'block';
-            videoContainer.classList.add('fullscreen');
-            drawCanvas.style.display = 'block';
-            document.getElementById('colorPalette').style.display = 'flex';
-            document.getElementById('status').style.display = 'block';
-            showStatus('Draw Mode Active');
-            initCamera();
-        };
+        function connectWS() {
+            ws = new WebSocket(WS_SERVER);
 
-        document.querySelectorAll('.color-option').forEach(option => {
-            option.onclick = (e) => {
-                document.querySelectorAll('.color-option').forEach(o => o.classList.remove('active'));
-                e.target.classList.add('active');
-                if (e.target.dataset.color === 'eraser') {
-                    isErasing = true;
-                } else {
-                    isErasing = false;
-                    drawingColor = e.target.dataset.color;
-                }
-            };
-        });
-
-        document.querySelectorAll('.brush-size').forEach(size => {
-            size.onclick = (e) => {
-                document.querySelectorAll('.brush-size').forEach(s => s.classList.remove('active'));
-                e.target.classList.add('active');
-                brushSize = parseInt(e.target.dataset.size);
-            };
-        });
-
-        function connectWebSocket() {
-            try {
-                ws = new WebSocket(WS_SERVER);
-                ws.onopen = () => showStatus('✅ Connected to server');
-                ws.onmessage = async (event) => {
-                    const msg = JSON.parse(event.data);
-
-                    if (msg.type === 'text') {
-                        // Write to clipboard
-                        await navigator.clipboard.writeText(msg.data);
-
-                        // Auto-display in paste area
-                        const div = document.createElement('div');
-                        div.className = 'paste-item';
-                        div.innerHTML = `<strong>FROM OTHER DEVICE:</strong><br>${escapeHtml(msg.data)}`;
-                        document.getElementById('pasteContent').appendChild(div);
-                        document.getElementById('pasteContent').scrollTop = 999999;
-
-                        showStatus('📥 Text received from other device');
-                        showGesture('📥');
-
-                    } else if (msg.type === 'image') {
-                        // Write to clipboard
-                        const res = await fetch(msg.data);
-                        const blob = await res.blob();
-                        await navigator.clipboard.write([new ClipboardItem({ [msg.mimeType]: blob })]);
-
-                        // Auto-display in paste area
-                        const div = document.createElement('div');
-                        div.className = 'paste-item';
-                        div.innerHTML = '<strong>FROM OTHER DEVICE:</strong>';
-
-                        const img = document.createElement('img');
-                        img.src = msg.data;
-                        div.appendChild(img);
-
-                        const btn = document.createElement('button');
-                        btn.className = 'download-btn';
-                        btn.textContent = 'Download Image';
-                        btn.onclick = () => {
-                            const a = document.createElement('a');
-                            a.href = msg.data;
-                            a.download = 'received-image.png';
-                            a.click();
-                        };
-                        div.appendChild(btn);
-
-                        document.getElementById('pasteContent').appendChild(div);
-                        document.getElementById('pasteContent').scrollTop = 999999;
-
-                        showStatus('📥 Image received from other device');
-                        showGesture('📥');
-                    }
-                };
-                ws.onerror = ws.onclose = () => showStatus('⚠️ Server offline - Local mode only');
-            } catch { showStatus('⚠️ Server offline - Local mode only'); }
+            ws.onopen = () => setStatus("Connected to backend");
+            ws.onclose = () => setStatus("Backend offline");
         }
 
         async function initCamera() {
-            if (camera) return;
-            hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+
+            hands = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
             hands.setOptions({
                 maxNumHands: 1,
-                modelComplexity: 0,  // Faster processing
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
+                modelComplexity: 0,
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.6
             });
+
             hands.onResults(onResults);
 
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: 640,  // Lower res = faster
-                    height: 480,
-                    frameRate: 60  // Higher frame rate
-                }
-            });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
             webcam.srcObject = stream;
+
             camera = new Camera(webcam, {
-                onFrame: async () => { await hands.send({ image: webcam }); },
+                onFrame: async () => await hands.send({ image: webcam }),
                 width: 640,
                 height: 480
             });
+
             camera.start();
         }
 
         function onResults(results) {
-            if (results.multiHandLandmarks && results.multiHandLandmarks[0]) {
-                const lm = results.multiHandLandmarks[0];
-                if (currentMode === 'copypaste') handleCopyPaste(lm);
-                else if (currentMode === 'draw') handleDraw(lm);
-            }
-        }
+            if (!results.multiHandLandmarks) return;
 
-        function handleCopyPaste(lm) {
+            const lm = results.multiHandLandmarks[0];
+
             const open = checkOpen(lm);
             const closed = checkClosed(lm);
 
             let state = null;
-            if (open && !closed) state = 'open';
-            else if (closed && !open) state = 'closed';
 
-            // Detect GRAB gesture: open → closed
-            if (lastGestureState === 'open' && state === 'closed' && !gestureDebounce) {
-                console.log('GRAB DETECTED - Copying...');
-                performCopy();
-                gestureDebounce = true;
-                setTimeout(() => { gestureDebounce = false; }, 2000);
+            if (open && !closed) state = "open";
+            else if (closed && !open) state = "closed";
+
+            if (lastState === "open" && state === "closed" && !debounce) {
+                sendCommand("copy");
             }
 
-            // Detect THROW gesture: closed → open
-            if (lastGestureState === 'closed' && state === 'open' && !gestureDebounce) {
-                console.log('THROW DETECTED - Pasting...');
-                performPaste();
-                gestureDebounce = true;
-                setTimeout(() => { gestureDebounce = false; }, 2000);
+            if (lastState === "closed" && state === "open" && !debounce) {
+                sendCommand("paste");
             }
 
-            lastGestureState = state;
+            lastState = state;
         }
 
-        function handleDraw(lm) {
-            const indexUp = lm[8].y < lm[5].y;
-            const x = (1 - lm[8].x) * drawCanvas.width;
-            const y = lm[8].y * drawCanvas.height;
+        function sendCommand(cmd) {
+            debounce = true;
 
-            if (indexUp) {
-                ctx.globalCompositeOperation = isErasing ? 'destination-out' : 'source-over';
-                ctx.strokeStyle = isErasing ? 'rgba(0,0,0,1)' : drawingColor;
-                ctx.lineWidth = isErasing ? brushSize * 3 : brushSize;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-
-                if (!isDrawing) {
-                    // Start new line
-                    ctx.beginPath();
-                    ctx.moveTo(x, y);
-                    isDrawing = true;
-                } else {
-                    // Continue drawing
-                    ctx.lineTo(x, y);
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.moveTo(x, y);
-                }
-
-                lastX = x;
-                lastY = y;
+            if (ws && ws.readyState === 1) {
+                ws.send(JSON.stringify({ type: cmd }));
+                setStatus(cmd.toUpperCase() + " sent to backend");
             } else {
-                isDrawing = false;
+                setStatus("Backend not connected");
             }
+
+            setTimeout(() => debounce = false, 1500);
         }
 
         function checkOpen(lm) {
@@ -510,149 +187,8 @@
                 Math.hypot(lm[16].x - p.x, lm[16].y - p.y) +
                 Math.hypot(lm[20].x - p.x, lm[20].y - p.y)) / 4) < 0.12;
         }
-
-        async function performCopy() {
-            try {
-                // Get selected text
-                const text = window.getSelection().toString().trim();
-
-                if (text) {
-                    // Copy to clipboard
-                    await navigator.clipboard.writeText(text);
-
-                    // Send to server if connected
-                    if (ws && ws.readyState === 1) {
-                        ws.send(JSON.stringify({ type: 'text', data: text }));
-                        showStatus('✅ Copied: "' + text.substring(0, 20) + '..." - Sent to server');
-                    } else {
-                        showStatus('✅ Copied: "' + text.substring(0, 20) + '..." - Local only');
-                    }
-
-                    showGesture('✊');
-                    return;
-                }
-
-                // If no text selected, try to copy image from clipboard
-                const items = await navigator.clipboard.read();
-                for (const item of items) {
-                    if (item.types.some(t => t.startsWith('image/'))) {
-                        const imageType = item.types.find(t => t.startsWith('image/'));
-                        const blob = await item.getType(imageType);
-                        const reader = new FileReader();
-
-                        reader.onloadend = () => {
-                            if (ws && ws.readyState === 1) {
-                                ws.send(JSON.stringify({
-                                    type: 'image',
-                                    data: reader.result,
-                                    mimeType: blob.type
-                                }));
-                                showStatus('✅ Image sent to server');
-                            } else {
-                                showStatus('✅ Image copied - Local only');
-                            }
-                            showGesture('✊');
-                        };
-
-                        reader.readAsDataURL(blob);
-                        return;
-                    }
-                }
-
-                showStatus('❌ Nothing selected - Select text first then close palm');
-
-            } catch (err) {
-                console.error('Copy error:', err);
-                showStatus('❌ Copy failed - Select text and try again');
-            }
-        }
-
-        async function performPaste() {
-            try {
-                const items = await navigator.clipboard.read();
-
-                for (const item of items) {
-                    // Try text first
-                    if (item.types.includes('text/plain')) {
-                        const blob = await item.getType('text/plain');
-                        const text = await blob.text();
-
-                        if (text.trim()) {
-                            const div = document.createElement('div');
-                            div.className = 'paste-item';
-                            div.innerHTML = `<strong>TEXT:</strong><br>${escapeHtml(text)}`;
-                            document.getElementById('pasteContent').appendChild(div);
-                            document.getElementById('pasteContent').scrollTop = 999999;
-
-                            showGesture('✋');
-                            showStatus('✅ Text pasted: "' + text.substring(0, 20) + '..."');
-                            return;
-                        }
-                    }
-
-                    // Try image
-                    if (item.types.some(t => t.startsWith('image/'))) {
-                        const imageType = item.types.find(t => t.startsWith('image/'));
-                        const blob = await item.getType(imageType);
-                        const reader = new FileReader();
-
-                        reader.onloadend = () => {
-                            const div = document.createElement('div');
-                            div.className = 'paste-item';
-                            div.innerHTML = '<strong>IMAGE:</strong>';
-
-                            const img = document.createElement('img');
-                            img.src = reader.result;
-                            div.appendChild(img);
-
-                            const btn = document.createElement('button');
-                            btn.className = 'download-btn';
-                            btn.textContent = 'Download Image';
-                            btn.onclick = () => {
-                                const a = document.createElement('a');
-                                a.href = reader.result;
-                                a.download = 'received-image.png';
-                                a.click();
-                            };
-                            div.appendChild(btn);
-
-                            document.getElementById('pasteContent').appendChild(div);
-                            document.getElementById('pasteContent').scrollTop = 999999;
-
-                            showGesture('✋');
-                            showStatus('✅ Image pasted');
-                        };
-
-                        reader.readAsDataURL(blob);
-                        return;
-                    }
-                }
-
-                showStatus('❌ Clipboard empty - Nothing to paste');
-
-            } catch (err) {
-                console.error('Paste error:', err);
-                showStatus('❌ Paste failed - Grant clipboard permission');
-            }
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function showStatus(msg) {
-            document.getElementById('status').textContent = msg;
-        }
-
-        function showGesture(emoji) {
-            const ind = document.getElementById('gestureIndicator');
-            ind.textContent = emoji;
-            ind.style.display = 'block';
-            setTimeout(() => { ind.style.display = 'none'; }, 500);
-        }
     </script>
+
 </body>
 
 </html>
