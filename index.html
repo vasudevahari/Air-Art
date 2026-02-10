@@ -156,20 +156,26 @@
             border-radius: 25px;
             display: none;
             z-index: 1000;
+            max-width: 80%;
+            text-align: center;
         }
 
         #pasteArea {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 400px;
-            max-height: 400px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 600px;
+            height: 60%;
+            max-height: 500px;
             background: rgba(10, 10, 10, 0.95);
             border: 3px solid #00ff88;
             border-radius: 10px;
             display: none;
             flex-direction: column;
-            z-index: 1000;
+            z-index: 999;
+            box-shadow: 0 0 40px rgba(0, 255, 136, 0.5);
         }
 
         #pasteArea .header {
@@ -177,12 +183,14 @@
             border-bottom: 2px solid #00ff88;
             color: #00ff88;
             text-transform: uppercase;
+            font-size: 1rem;
+            text-align: center;
         }
 
         #pasteContent {
             padding: 15px;
             overflow-y: auto;
-            max-height: 300px;
+            flex: 1;
             color: #fff;
         }
 
@@ -345,14 +353,52 @@
                 ws.onopen = () => showStatus('✅ Connected to server');
                 ws.onmessage = async (event) => {
                     const msg = JSON.parse(event.data);
+
                     if (msg.type === 'text') {
+                        // Write to clipboard
                         await navigator.clipboard.writeText(msg.data);
-                        showStatus('📥 Text received - Open palm to paste');
+
+                        // Auto-display in paste area
+                        const div = document.createElement('div');
+                        div.className = 'paste-item';
+                        div.innerHTML = `<strong>FROM OTHER DEVICE:</strong><br>${escapeHtml(msg.data)}`;
+                        document.getElementById('pasteContent').appendChild(div);
+                        document.getElementById('pasteContent').scrollTop = 999999;
+
+                        showStatus('📥 Text received from other device');
+                        showGesture('📥');
+
                     } else if (msg.type === 'image') {
+                        // Write to clipboard
                         const res = await fetch(msg.data);
                         const blob = await res.blob();
                         await navigator.clipboard.write([new ClipboardItem({ [msg.mimeType]: blob })]);
-                        showStatus('📥 Image received - Open palm to paste');
+
+                        // Auto-display in paste area
+                        const div = document.createElement('div');
+                        div.className = 'paste-item';
+                        div.innerHTML = '<strong>FROM OTHER DEVICE:</strong>';
+
+                        const img = document.createElement('img');
+                        img.src = msg.data;
+                        div.appendChild(img);
+
+                        const btn = document.createElement('button');
+                        btn.className = 'download-btn';
+                        btn.textContent = 'Download Image';
+                        btn.onclick = () => {
+                            const a = document.createElement('a');
+                            a.href = msg.data;
+                            a.download = 'received-image.png';
+                            a.click();
+                        };
+                        div.appendChild(btn);
+
+                        document.getElementById('pasteContent').appendChild(div);
+                        document.getElementById('pasteContent').scrollTop = 999999;
+
+                        showStatus('📥 Image received from other device');
+                        showGesture('📥');
                     }
                 };
                 ws.onerror = ws.onclose = () => showStatus('⚠️ Server offline - Local mode only');
