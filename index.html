@@ -19,8 +19,9 @@
             font-family: 'Courier New', monospace;
             background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
             color: #00ff88;
-            overflow: hidden;
-            height: 100vh;
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         .container {
@@ -179,10 +180,9 @@
 
         /* Received content - centered */
         #pasteArea {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            position: relative;
+            margin: 120px auto 20px;
+            transform: none;
             width: 90%;
             max-width: 700px;
             height: 70%;
@@ -438,25 +438,22 @@
         }
 
         @media (max-width:768px) {
+
             #videoContainer {
-                width: 100px !important;
-                height: 75px !important;
-                top: 8px !important;
-                right: 8px !important;
+                width: 100px;
+                height: 75px;
+                top: 8px;
+                right: 8px;
             }
 
             .room-code-display {
-                left: 8px !important;
-                top: 8px !important;
+                left: 8px;
+                top: 8px;
             }
 
             #pasteArea {
-                width: 96% !important;
-                height: 62% !important;
-            }
-
-            button {
-                width: 100%;
+                width: 95%;
+                height: auto;
             }
         }
     </style>
