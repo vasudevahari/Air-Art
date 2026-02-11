@@ -427,6 +427,44 @@
             outline: none;
             box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
         }
+
+        .room-code-display input {
+            width: 90px;
+            margin-top: 6px;
+            background: transparent;
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            #videoContainer {
+                width: 120px;
+                height: 90px;
+                top: 10px;
+                right: 10px;
+            }
+
+            .room-code-display {
+                top: 10px;
+                left: 10px;
+                padding: 6px;
+            }
+
+            #pasteArea {
+                width: 95%;
+                height: 65%;
+            }
+
+            h1 {
+                font-size: 1.6rem;
+            }
+
+            button {
+                padding: 12px 18px;
+                font-size: 0.9rem;
+            }
+        }
     </style>
 </head>
 
@@ -481,6 +519,9 @@
     <!-- Room Code Display -->
     <div class="room-code-display" id="roomCodeDisplay">
         <canvas id="qrCanvas"></canvas>
+        <br>
+        <input id="roomJoinInput" placeholder="Enter code" maxlength="6">
+        <button onclick="joinRoom()" style="padding: 5px 10px; margin: 5px; font-size: 0.8rem;">Join</button>
     </div>
 
 
@@ -513,6 +554,14 @@
         let lastX = 0, lastY = 0, lastGestureState = null, gestureDebounce = false;
         let cameraGranted = false;
         let currentRoom = null;
+        const clientId = crypto.randomUUID();
+
+        // Draw gesture vars
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ffffff'];
+        let colorIndex = 0;
+        const sizes = [5, 10, 20, 30];
+        let sizeIndex = 0;
+        let thumbCooldown = false;
 
         // RPS mode variables
         let playerId = null;
@@ -604,6 +653,14 @@
             startRps(); // User didn't specify auto-start for RPS but logic follows
         };
 
+        function joinRoom() {
+            const code = document.getElementById('roomJoinInput').value;
+            if (code.length !== 6) return;
+
+            currentRoom = code;
+            startCopyPaste();
+        }
+
         function generateQR(room) {
             const url = location.origin + location.pathname + '?room=' + room;
             QRCode.toCanvas(
@@ -679,6 +736,7 @@
 
                     // Only process messages from same room
                     if (msg.room !== currentRoom) return;
+                    if (msg.sender === clientId) return;
 
                     if (msg.type === 'text') {
                         await navigator.clipboard.writeText(msg.data);
@@ -797,6 +855,29 @@
         }
 
         function handleDraw(lm) {
+            const thumbIndexDist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
+            const thumbMiddleDist = Math.hypot(lm[4].x - lm[12].x, lm[4].y - lm[12].y);
+
+            if (!thumbCooldown) {
+                // change color
+                if (thumbIndexDist < 0.05) {
+                    colorIndex = (colorIndex + 1) % colors.length;
+                    drawingColor = colors[colorIndex];
+                    thumbCooldown = true;
+                    showStatus('Color: ' + drawingColor);
+                }
+
+                // change size
+                if (thumbMiddleDist < 0.05) {
+                    sizeIndex = (sizeIndex + 1) % sizes.length;
+                    brushSize = sizes[sizeIndex];
+                    thumbCooldown = true;
+                    showStatus('Size: ' + brushSize);
+                }
+
+                if (thumbCooldown) setTimeout(() => thumbCooldown = false, 700);
+            }
+
             const indexUp = lm[8].y < lm[6].y;
             const middleUp = lm[12].y < lm[10].y;
             const ringUp = lm[16].y < lm[14].y;
